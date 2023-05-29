@@ -32,10 +32,16 @@ INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 echo $?
 echo $INSTANCE_ID
 
-TYPENAME=$(aws ec2 describe-instances --instance-ids "${INSTANCE_ID}" --query 'Reservations[0].Instances[0].Tags[?Key==`typename`]|[0].Value' | tr -d '"')
+INSTANCENAME=$(aws ec2 describe-instances --instance-ids "${INSTANCE_ID}" --query 'Reservations[0].Instances[0].Tags[?Key==`instancename`]|[0].Value' | tr -d '"')
 # エラー処理は甘め。tr コマンドの終了ステータスになる。
 echo $?
-echo $TYPENAME
+echo $INSTANCENAME
+
+# タグが存在しない場合は null という値が返ってくる
+if [ $INSTANCENAME = "null" ]; then
+    echo >&2 "ERROR: Cannot find instancename."
+    exit 1
+fi
 
 # ドメイン取得
 DOMAIN=$(aws route53 get-hosted-zone --id $HOSTED_ZONE_ID --query "HostedZone.Name" | tr -d '"')
@@ -43,7 +49,7 @@ DOMAIN=$(aws route53 get-hosted-zone --id $HOSTED_ZONE_ID --query "HostedZone.Na
 echo $?
 echo $DOMAIN
 
-FQDN="$TYPENAME.$DOMAIN"
+FQDN="$INSTANCENAME.$DOMAIN"
 echo $FQDN
 
 IPV4=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
