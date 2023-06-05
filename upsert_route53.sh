@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# 自分の IP アドレスを特定の FQND に割り当て
+# 自分の IP アドレスを特定の FQDN に割り当て
 #
 # - cron で起動時に一度だけ実行
 #   (例) @reboot /home/ec2-user/bin/upsert_route53.sh Z3T2KC0KGMQA00 >> $HOME/upsert_route53.log
@@ -9,6 +9,7 @@
 # - https://atmarkit.itmedia.co.jp/aig/06network/fqdn.html
 #
 # - AWS CLI は設定済みの前提
+# - 自分のファイルがある場所にサブシェルもあること
 #
 
 # 引数チェック (数のみ)
@@ -18,9 +19,13 @@ if [ $# != 1 ]; then
     exit 1
 fi
 
+# サブシェルのある場所
+# https://qiita.com/mashumashu/items/f5b5ff62fef8af0859c5#%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%81%8A%E3%82%88%E3%81%B3%E3%83%87%E3%82%A3%E3%83%AC%E3%82%AF%E3%83%88%E3%83%AA%E3%81%AE%E5%91%BD%E5%90%8D%E8%A6%8F%E5%89%87
+SCRIPT_DIR=$(dirname $0)
+
 # 以下で HOSTED_ZONE_ID を確認
 # https://us-east-1.console.aws.amazon.com/route53/v2/hostedzones
-# aws route53 list-hosted-zones 
+# aws route53 list-hosted-zones
 #HOSTED_ZONE_ID="Z3T2KC0KGMQA00"  # akoba.xyz
 HOSTED_ZONE_ID=$1
 
@@ -43,42 +48,17 @@ if [ $INSTANCENAME = "null" ]; then
     exit 1
 fi
 
-# ドメイン取得
-DOMAIN=$(aws route53 get-hosted-zone --id $HOSTED_ZONE_ID --query "HostedZone.Name" | tr -d '"')
-# エラー処理は甘め。tr コマンドの終了ステータスになる。
-echo $?
-echo $DOMAIN
-
-FQDN="$INSTANCENAME.$DOMAIN"
-echo $FQDN
-
 IPV4=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
 # エラー処理は甘め。エラー HTML が取得される場合は検出できない。
 echo $?
 echo $IPV4
 
-# 一時ファイルは消さない
-tmpfile=$(mktemp)
+# ドメイン取得
+# ドメインは HOSTED_ZONE_ID から自動的に決定される
 
-cat <<EOF > $tmpfile
-{
-  "Comment": "UPSERT a record ",
-  "Changes": [{
-    "Action": "UPSERT",
-    "ResourceRecordSet": {
-      "Name": "$FQDN",
-      "Type": "A",
-      "TTL": 300,
-      "ResourceRecords": [{ "Value": "$IPV4" }]
-    }
-  }]
-}
-EOF
-
-aws route53 change-resource-record-sets --hosted-zone-id $HOSTED_ZONE_ID --change-batch file://$tmpfile
-# ↓ココまではしない
-# https://hacknote.jp/archives/35775/
+# Route 53 (DNS) 更新
+${SCRIPT_DIR}/upsert_a.sh $HOSTED_ZONE_ID $INSTANCENAME $IPV4
 if [ $? -ne 0 ]; then
-    echo >&2 "ERROR: aws route53 command error."
+    echo >&2 "ERROR: upsert_a.sh error."
     exit 1
 fi
