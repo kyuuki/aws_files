@@ -5,7 +5,7 @@
 # - cron で起動時に一度だけ実行
 #   (例) @reboot /home/ec2-user/bin/upsert_route53.sh Z3T2KC0KGMQA00 >> $HOME/upsert_route53.log
 # - ドメイン (HOSTED_ZONE_ID) はパタメータで指定 (デフォルトは akoba.xyz の HOSTED_ZONE_ID)
-# - ホスト名はインスタンスのタグ名 (typename) から取得
+# - ホスト名はインスタンスのタグ名 (instancename) から取得
 # - https://atmarkit.itmedia.co.jp/aig/06network/fqdn.html
 #
 # - AWS CLI は設定済みの前提
