@@ -30,9 +30,12 @@ SCRIPT_DIR=$(dirname $0)
 HOSTED_ZONE_ID=$1
 
 # タグ名 (typename) 取得
+# - https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+# - https://qiita.com/AlmondTofu/items/bdc199504b740c356102
 # - https://qiita.com/JunkiHiroi/items/0e63a9d551d5dafa34d2
 # - https://qiita.com/qtatsunishiura/items/fdd5e7f251299a90cd8c#%E5%89%8D%E7%BD%AE%E3%81%8D-%E5%A4%89%E6%95%B0%E5%B1%95%E9%96%8B%E3%82%92%E4%BD%BF%E3%82%8F%E3%81%9A%E7%9B%B4%E6%8E%A5%E5%80%A4%E3%82%92%E6%9B%B8%E3%81%8F%E5%A0%B4%E5%90%88
-INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id)
 # エラー処理は甘め。エラー HTML が取得される場合は検出できない。
 echo $?
 echo $INSTANCE_ID
@@ -48,7 +51,7 @@ if [ $INSTANCENAME = "null" ]; then
     exit 1
 fi
 
-IPV4=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+IPV4=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4)
 # エラー処理は甘め。エラー HTML が取得される場合は検出できない。
 echo $?
 echo $IPV4
